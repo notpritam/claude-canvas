@@ -5,7 +5,11 @@ description: Use when the user explicitly requests a visualization, diagram, flo
 
 # claude-canvas
 
-Render rich, interactive diagrams on a real canvas (React Flow) in the user's browser. The user explicitly invokes this; do not trigger it automatically when explaining something visually — write Mermaid or ASCII inline instead.
+Render rich, interactive diagrams on a real canvas (React Flow) in the user's browser. **This is a collaborative flow editor — you propose the flow, the user refines it.** The user can drag nodes, connect/disconnect edges, reattach edges to different endpoints, edit labels in place, add new nodes from a palette, and delete anything. Every edit auto-saves and is preserved on disk.
+
+Your job is to give them a strong first proposal so the refinement work is minimal. Don't be precious about your layout — assume they'll move things around. Focus on getting the **structure right** (right nodes, right edges, right types) more than precise positions.
+
+The user explicitly invokes this; do not trigger it automatically when explaining something visually — write Mermaid or ASCII inline instead.
 
 ## When to use this skill
 
@@ -218,6 +222,20 @@ If yes, the user opens the canvas and clicks "Save current as template…" in th
 - Same `id` → overwrites the JSON file → server broadcasts `diagram:update` → existing browser tab hot-swaps.
 - Use this for iterative refinement: "make node X red" → rewrite the same file with the change.
 - New diagrams get new IDs unless the user asks to edit the current one.
+
+## What the user can do once your diagram is on-screen
+
+This is a real editor. Once you've rendered a diagram, the user can:
+
+- **Drag** nodes anywhere (auto-saves position).
+- **Connect** two nodes by dragging from the right handle of one to the left handle of another → creates a `request` edge by default; they can change the type by editing the JSON or via UI (future).
+- **Disconnect / delete** an edge by selecting it and pressing Delete/Backspace.
+- **Reattach** an edge by grabbing one of its endpoints and dragging it to a new node.
+- **Edit a label** by double-clicking it.
+- **Add a new node** by dragging from the palette (top-left) onto the canvas.
+- **Delete a node** by selecting it and pressing Delete/Backspace — connected edges are removed too.
+
+Treat their edits as the source of truth. When the user comes back to you with "you got X wrong" or "add a step between Y and Z", read the latest `data/diagrams/<id>.json` to see their current state, then update it preserving their layout choices.
 
 ## Anti-patterns
 
