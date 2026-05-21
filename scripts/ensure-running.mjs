@@ -34,6 +34,11 @@ async function spawnDetached() {
   out.unref();
   return new Promise((resolve, reject) => {
     let buf = "";
+    const cleanup = () => {
+      out.stdout.off("data", onData);
+      try { out.stdout.destroy(); } catch {}
+      try { out.stderr.destroy(); } catch {}
+    };
     const onData = (chunk) => {
       buf += chunk.toString();
       const line = buf.split("\n").find((l) => l.trim().startsWith("{"));
@@ -41,10 +46,10 @@ async function spawnDetached() {
         try {
           const parsed = JSON.parse(line);
           if (parsed.status === "started" || parsed.status === "reused") {
-            out.stdout.off("data", onData);
+            cleanup();
             resolve(parsed);
           } else if (parsed.status === "error") {
-            out.stdout.off("data", onData);
+            cleanup();
             reject(new Error(parsed.message));
           }
         } catch {}
@@ -52,7 +57,10 @@ async function spawnDetached() {
     };
     out.stdout.on("data", onData);
     out.stderr.on("data", (c) => process.stderr.write(c));
-    setTimeout(() => reject(new Error("server start timeout")), 10000).unref();
+    setTimeout(() => {
+      cleanup();
+      reject(new Error("server start timeout"));
+    }, 10000).unref();
   });
 }
 
@@ -85,6 +93,7 @@ async function main() {
   if (!args.quiet) {
     console.log(JSON.stringify({ url, port: lock.port, pid: lock.pid, new: wasNew }));
   }
+  process.exit(0);
 }
 
 main().catch((err) => {
