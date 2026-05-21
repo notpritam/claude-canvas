@@ -1,67 +1,69 @@
 ---
 name: claude-canvas
-description: Use when the user explicitly requests a visualization, diagram, flowchart, architecture sketch, or asks "show me on a canvas" / "draw this" / "visualize" / "/visualize". Renders interactive diagrams on a real React Flow canvas in the user's browser. Not for static markdown diagrams — use Mermaid in your reply for those.
+description: Use when the user explicitly requests a visualization, diagram, flowchart, architecture sketch, or asks "show me on a canvas" / "draw this" / "visualize" / "/visualize". Renders interactive diagrams on a real tldraw canvas in the user's browser. Not for static markdown diagrams — use Mermaid in your reply for those.
 ---
 
 # claude-canvas
 
-Render rich, interactive diagrams on a real canvas (React Flow) in the user's browser. **This is a collaborative flow editor — you propose the flow, the user refines it.** The user can drag nodes, connect/disconnect edges, reattach edges to different endpoints, edit labels in place, add new nodes from a palette, and delete anything. Every edit auto-saves and is preserved on disk.
+Render rich, interactive diagrams on a real canvas (tldraw) in the user's browser. **This is a collaborative flow editor — you propose the flow, the user refines it.** Users can drag, connect, disconnect, reattach, edit labels in place, add nodes from a palette, and delete anything. Every edit auto-saves.
 
-Your job is to give them a strong first proposal so the refinement work is minimal. Don't be precious about your layout — assume they'll move things around. Focus on getting the **structure right** (right nodes, right edges, right types) more than precise positions.
+Your job is to give them a **strong first proposal** so refinement is minimal. The diagram must be unambiguous, complete, and at the right abstraction level. **Don't generate a sloppy diagram and let the user fix it** — that defeats the purpose.
 
-The user explicitly invokes this; do not trigger it automatically when explaining something visually — write Mermaid or ASCII inline instead.
+The user explicitly invokes this. Do NOT trigger automatically when explaining something visually — write Mermaid or ASCII inline instead.
 
 ## When to use this skill
 
 **Use when** the user says:
-- `/visualize <thing>`
-- "show this on a canvas"
-- "draw it / draw this out"
-- "diagram this"
-- "open the canvas"
-- "render this in claude-canvas"
+- `/visualize <thing>`, "show this on a canvas", "draw it/this out", "diagram this", "open the canvas", "render this in claude-canvas"
 
-**Do NOT use when:**
-- User just wants a quick mental model in chat → use Mermaid in your reply
-- User wants a static doc artifact → write Mermaid into a `.md` file
-- User has not explicitly asked for visualization → respond normally
+**Use a diagram (vs prose) when:**
+- The answer involves 3+ interacting entities (prose creates pronoun ambiguity past 3)
+- There are conditional branches (decision diamonds beat "if/else" prose)
+- The user is debugging a causal chain (causation is directional, edges win)
+- The question is about topology, protocol, handshake, lifecycle, or dependency
+- The user says "I keep getting confused by..." (cognitive overload signal)
 
-## How to use
+**Do NOT use a diagram when:**
+- 1-2 sentences would answer cleanly
+- Only 1 entity is involved (no edges possible)
+- The content is reference data (table beats diagram for columnar lookup)
+- The answer is pure temporal narrative with no branching (prose timeline wins)
 
-There are exactly two things you do:
+---
 
-1. **Write a diagram JSON file** to `data/diagrams/<id>.json` in the skill folder.
-2. **Run the bootstrap script** to ensure the server is running and open the browser to that diagram.
+## The 7-question preflight (do this BEFORE writing any JSON)
 
-### Step 1: Find the skill folder
+Answer these to yourself first. If you can't, the diagram will be wrong.
 
-The skill lives at one of these paths (try in order):
-- `~/.claude/skills/claude-canvas/`
-- `~/.claude/plugins/cache/notpritam-claude-canvas/<version>/`
+1. **Audience?** DevOps → container-level. Business → context-level. Student → step-by-step concrete.
+2. **The one thing this diagram must make unmistakable?** If you can't state it in one sentence, **the scope is too large — split it**.
+3. **What abstraction level?** Pick exactly one C4 level (Context / Container / Component / Code). Do not mix in the same diagram.
+4. **How many distinct entities are genuinely involved?** If >12, decompose into 2+ diagrams.
+5. **Entry point and exit point?** Every diagram needs exactly one start and at least one terminal.
+6. **Which diagram type does this map to?** (table below)
+7. **Are there decision branches?** Yes → `decision` nodes required. No → `decision` nodes forbidden.
 
-Resolve the absolute path once and reuse it. Call this `$CC` below.
+## Diagram type → structure
 
-### Step 2: Check templates BEFORE generating from scratch
+| User intent | Diagram | Primary node types | Primary edge types | Flow direction |
+|---|---|---|---|---|
+| "How does X work?" (process) | Step flow | `actor`, `action`, `data`, `decision` | `request`, `causes` | Top-to-bottom (>5 steps) or L→R |
+| "What's the architecture of X?" | C4 Container | `actor`, `concept`, `data` | `request`, `data`, `depends-on` | L→R w/ swimlanes per service |
+| "Why does X happen?" (causal) | Causal chain | `action`, `concept`, `decision` | `causes` ONLY | L→R |
+| "What are the parts of X?" | Taxonomy tree | `concept`, `data`, `actor` (leaves) | `depends-on` | T→B (general to specific) |
+| "Difference between X and Y?" | Side-by-side compare | Same type for analogous concepts | `bidirectional` (shared), `depends-on` (divergent) | L→R, X left, Y right |
+| "Lifecycle of X?" | State machine | `concept` (states), `decision` (guards) | `causes` (auto), `request` (triggered) | L→R linear; circular if cyclic |
+| "What depends on what?" | DAG | `code`, `actor`, `data` | `depends-on` ONLY | B→T (deps at bottom) |
+| "How do A and B interact?" | Sequence | `actor` ONLY (+ `note` for annotations) | `request`, `data` | Actors horizontal, time T→B |
 
-Read `$CC/templates/defaults/index.json` and `$CC/data/templates/index.json` (if it exists). Scan the `description` and `tags` of each entry for a match against the user's request.
+---
 
-If you find a good match:
-- Read `$CC/templates/defaults/<slug>.json` (or `$CC/data/templates/<slug>.json` for user templates)
-- Substitute `{{placeholders}}` in `template.diagram` with task-specific content
-- Set `template_id` on the new diagram to the slug
-
-If no template matches, generate from scratch using the schema below.
-
-### Step 3: Generate the diagram JSON
-
-ID convention: `<topic-slug>-<YYYYMMDD-HHMMSS>` (e.g. `jwt-auth-20260521-143000`). Use the same ID to update an existing diagram (the server overwrites and pushes a live update).
-
-#### Full schema
+## The schema
 
 ```json
 {
-  "id": "string (required, kebab-case)",
-  "title": "string (required, human-readable)",
+  "id": "string (kebab-case)",
+  "title": "string (human-readable)",
   "description": "string (optional)",
   "schema_version": 1,
   "template_id": "string (optional, slug of source template)",
@@ -73,8 +75,8 @@ ID convention: `<topic-slug>-<YYYYMMDD-HHMMSS>` (e.g. `jwt-auth-20260521-143000`
     {
       "id": "string (unique)",
       "type": "action | data | concept | decision | code | note | actor",
-      "label": "string (short, shown as title)",
-      "content": "string (optional markdown body)",
+      "label": "string (≤4 words / 35 chars, self-contained)",
+      "content": "string (optional, for anything that doesn't fit in label)",
       "group": "string (optional group id)",
       "position": { "x": number, "y": number },
       "style": { "color": "#hex (optional)", "icon": "string (optional)" }
@@ -85,7 +87,7 @@ ID convention: `<topic-slug>-<YYYYMMDD-HHMMSS>` (e.g. `jwt-auth-20260521-143000`
       "id": "string (unique)",
       "source": "node id",
       "target": "node id",
-      "label": "string (optional)",
+      "label": "string (verb-first, ≤5 words / 40 chars)",
       "type": "request | data | causes | depends-on | bidirectional",
       "style": { "color": "#hex (optional)", "dashed": boolean (optional) }
     }
@@ -93,154 +95,289 @@ ID convention: `<topic-slug>-<YYYYMMDD-HHMMSS>` (e.g. `jwt-auth-20260521-143000`
 }
 ```
 
-#### Node type decision rules
+---
 
-| If the thing is… | Use |
+## Node type rules — pick the RIGHT one
+
+### `action` — verbs / things that happen
+- ✓ "Validate Token", "Send Email", "Encrypt Payload"
+- ✗ "Authentication" (process → `concept`), "User" (person → `actor`), "Login Form" (UI → `data`)
+- **Disambiguation:** Verb form = `action`. Noun/process form = `concept`. Completable in <1s → `action`. Multi-step → `concept`.
+
+### `data` — payloads / artifacts / state blobs that flow
+- ✓ "JWT Token", "Request Payload", "User Record", "Error Response"
+- ✗ "Database" (service → `actor`), "Validation" (step → `action`), state in a lifecycle (→ `concept`)
+- **Rule:** Data nodes don't initiate. They receive and emit. If your `data` node "causes" something, reclassify it as `action`.
+
+### `concept` — abstract idea / category / named state
+- ✓ "Eventual Consistency", "Logged In State", "Rate Limiting", "Microservice"
+- ✗ "UserService" at container level (→ `actor`), "Database Write" (→ `action`), "JWT" (artifact → `data`)
+- **Rule:** States in a state machine = `concept`. Events/transitions = edge labels, not nodes.
+
+### `decision` — branching point with a condition
+- ✓ "Valid credentials?", "Rate limit exceeded?", "Cache hit?"
+- ✗ "Choose method" if no actual branching (→ `action`), "Error" (outcome, not branch → `data`)
+- **Hard rule:** `decision` MUST have ≥2 outgoing edges labeled with branch conditions ("yes"/"no", etc.). One outgoing edge = error.
+
+### `code` — literal copy-pasteable syntax
+- ✓ `def validate_jwt(token):`, `POST /api/v2/auth`, `nginx upstream block`
+- ✗ "Function call" as a step (→ `action`), "API" as a system (→ `actor`)
+- **Rule:** Only literal syntax. Concepts ABOUT code → `concept` or edge label.
+
+### `note` — annotation / aside
+- ✓ "This step only in production", "Deprecated — removal Q3"
+- ✗ Anything load-bearing for the flow
+- **Test:** If removing the note would cause confusion, it's not a note — it's a missing node or edge label.
+
+### `actor` — human / external system / service / agent (anything with agency)
+- ✓ "Browser Client", "Stripe API", "DevOps Engineer", "PostgreSQL"
+- ✗ "Auth Module" if internal component (→ `concept`/`code`), "Cache" if passive store (→ `data`)
+- **Rule:** Has agency = can initiate. Database is `actor` (responds). JWT is `data` (no agency).
+
+---
+
+## Edge type rules
+
+### `request` — caller asks callee, sync or explicit
+- ✓ "Client → Server: GET /user", "Service A → Service B: validate()"
+- ✗ Event without response expectation (→ `causes`), payload in transit (→ `data`)
+- **Direction:** Initiator → receiver.
+
+### `data` — flows from producer to consumer (no request/response)
+- ✓ "Kafka → Consumer: UserCreatedEvent", "Transform → Storage: cleaned_record"
+- ✗ Sync API call (→ `request`), causal relationship (→ `causes`)
+- **Use for:** async messaging, streaming, pipelines.
+
+### `causes` — A causes B (causal, not request-based)
+- ✓ "High CPU → Throttling", "Token Expiry → Forced Logout", "Disk Full → Write Failure"
+- ✗ Intentional call (→ `request`)
+- **Rule:** No agency required. Models emergent/unintentional relationships.
+
+### `depends-on` — A needs B to exist/function
+- ✓ "Service A → Library B", "Component → Config"
+- ✗ Runtime call (→ `request`)
+- **Direction:** Arrow points FROM dependent TO dependency.
+
+### `bidirectional` — genuinely symmetric (both initiate + receive)
+- ✓ "Client ↔ Server: WebSocket", "Peer A ↔ Peer B: P2P sync"
+- ✗ Request + its response (use TWO `request` edges with distinct labels)
+- **Default to two `request` edges with distinct labels.** Bidirectional is hard to label and often hides imprecision.
+
+---
+
+## Composition rules (numeric limits — these are HARD)
+
+| Rule | Limit |
 |---|---|
-| A verb / something that happens | `action` |
-| A payload / state / message | `data` |
-| An abstract idea / principle | `concept` |
-| A branch / yes-no / fork | `decision` |
-| A code snippet | `code` (put the code in `content` as a ```fenced block) |
-| An annotation / side comment | `note` |
-| A service / person / system / database | `actor` |
+| Max nodes per diagram | 15 ideal, 20 hard cap. >20 = split. |
+| Max sequence participants | 6 |
+| Max swimlane lanes | 7 |
+| Max in-degree / out-degree per node | 4 |
+| Children per decomposition level | 3–7 |
+| Node label length | ≤4 words / ≤35 chars |
+| Edge label length | ≤5 words / ≤40 chars, must include a verb |
+| Group label length | ≤3 words / ≤25 chars |
 
-#### Edge type decision rules
+**Spacing in `position`:**
+- Min separation: 80px horizontal, 100px vertical
+- Sequence message spacing: 80–120px vertical per step
+- Tree: 200px per level, 150px between siblings (more if labels are long)
+- Group gap: 150px between groups
 
-| If A → B represents… | Use |
-|---|---|
-| A caller invoking B | `request` |
-| Data flowing from A to B | `data` |
-| A causes B (cause/effect) | `causes` |
-| A depends on B (B must exist) | `depends-on` |
-| Two-way (chat, sync, etc.) | `bidirectional` |
+**Layout direction by intent:** see Diagram type table above. Use `layout_hint` field to signal intent.
 
-#### Layout rules
+**When to add a group:** 3+ nodes share an actor/owner, OR diagram has 10+ nodes (groups reduce perceived complexity). Don't group decoratively.
 
-- Default to **left-to-right** flow for sequences. Stagger nodes vertically to avoid overlap.
-- Use **groups** for swimlanes (client vs server, frontend vs backend), layers (UI/logic/data), or phases.
-- Node spacing: ~160px horizontal between sequential nodes, ~120px vertical between rows.
-- Keep node count under 25 per diagram. For larger systems, split into multiple linked diagrams.
-- Use `content` (markdown) for explanation — don't cram long text into `label`.
+**When to use `content` vs `label`:** label = name (≤4 words). content = anything that doesn't fit — longer explanation, URL, code snippet, caveats. Never cram long text into label.
 
-#### Worked example
+---
 
-User: `/visualize how JWT refresh tokens work`
+## Mandatory pre-call self-check (10 items — verify ALL before invoking the canvas)
 
-```json
-{
-  "id": "jwt-refresh-20260521-143000",
-  "title": "JWT refresh token flow",
-  "description": "Short-lived access tokens + long-lived refresh tokens",
-  "schema_version": 1,
-  "template_id": "request-response-flow",
-  "groups": [
-    { "id": "client", "label": "Client", "color": "#3b82f6" },
-    { "id": "server", "label": "Auth Server", "color": "#10b981" }
-  ],
-  "nodes": [
-    {
-      "id": "login",
-      "type": "action",
-      "label": "User logs in",
-      "group": "client",
-      "position": { "x": 40, "y": 60 },
-      "content": "POSTs credentials to `/login`."
-    },
-    {
-      "id": "auth",
-      "type": "actor",
-      "label": "Auth server",
-      "group": "server",
-      "position": { "x": 380, "y": 60 }
-    },
-    {
-      "id": "tokens",
-      "type": "data",
-      "label": "Access + refresh tokens",
-      "group": "client",
-      "position": { "x": 40, "y": 200 },
-      "content": "Access token: 15 min TTL\nRefresh token: 30 days TTL, httpOnly cookie"
-    },
-    {
-      "id": "expired",
-      "type": "decision",
-      "label": "Access token expired?",
-      "group": "client",
-      "position": { "x": 380, "y": 320 }
-    },
-    {
-      "id": "refresh",
-      "type": "action",
-      "label": "Use refresh token",
-      "group": "client",
-      "position": { "x": 380, "y": 460 },
-      "content": "POST `/refresh` with the refresh cookie."
-    }
-  ],
-  "edges": [
-    { "id": "e1", "source": "login", "target": "auth", "label": "POST /login", "type": "request" },
-    { "id": "e2", "source": "auth", "target": "tokens", "label": "200 + tokens", "type": "data" },
-    { "id": "e3", "source": "tokens", "target": "expired", "type": "causes", "label": "on each request" },
-    { "id": "e4", "source": "expired", "target": "refresh", "label": "yes", "type": "causes" },
-    { "id": "e5", "source": "refresh", "target": "auth", "label": "POST /refresh", "type": "request" }
-  ]
-}
-```
+If ANY item fails, fix the diagram before running the bootstrap script. **Do not ship a diagram that fails any of these.**
 
-### Step 4: Write the JSON and invoke the bootstrap script
+1. **Topic legible from labels alone.** Cover the `content` fields mentally. Can a stranger identify the topic from just node labels and edge labels? If not → fix labels.
+2. **Every node earns its place.** Each node is referenced by ≥1 edge OR is entry/exit. (`note` nodes exempt.) Remove orphans.
+3. **Exactly one entry point.** Exactly one node with zero incoming edges. 0 or 2+ = ambiguous → add a clear start.
+4. **At least one clear exit.** ≥1 node with zero outgoing edges (or marked as terminal). State machines: mark terminal states.
+5. **Abstraction level is consistent.** No node radically off-level from the others (e.g., "User clicks Login" must not appear next to "TCP SYN packet"). Off-level node? Remove it OR split into a second diagram.
+6. **Every edge direction is semantically correct.** Read each as a sentence: "A [edge-type] B." Does it make sense? Reverse any that don't.
+7. **Every edge has a verb-first label.** Exception: `depends-on` where node types make it self-evident.
+8. **Every `decision` node has ≥2 outgoing edges**, each with a branch label ("yes"/"no" or named conditions).
+9. **Node count within limits.** ≤15 ideally, ≤20 hard. Else split.
+10. **The diagram answers the user's actual question.** Re-read the user's verbatim phrasing. Does this diagram answer it, or did you drift to an adjacent question?
+
+---
+
+## Anti-patterns — these are auto-fails, NEVER ship
+
+1. **Spaghetti edges** — multiple crossings. Fix layout or decompose.
+2. **Mixed abstraction levels** — user-story step next to protocol packet. Pick one level; create second diagram if needed.
+3. **Unlabeled edges** — arrows mean too many things. Every edge gets a verb-first label.
+4. **God node (6+ edges)** — extract to its own sub-diagram, show as actor with link.
+5. **Decorative node-type choice** — type must match semantic role from the Node Type Rules section, not aesthetics.
+6. **No entry point** — multiple nodes with zero incoming edges leaves reader lost. Single entry only.
+7. **Audience mismatch** — code-level diagram for business question, or context-level for engineer asking about internals.
+8. **Bidirectional without labels** — `↔` with no label = literally nothing communicated. Use two labeled `request` edges instead.
+9. **2-node "architecture diagram"** — under-decomposed. Either expand to ≥4-6 nodes or just use prose.
+10. **Multiple organizational principles in one view** — deployment topology + user journey + data model in one diagram = unreadable. One diagram, one principle.
+
+---
+
+## How to use this skill
+
+### Step 1: Find the skill folder
+- `~/.claude/skills/claude-canvas/` (typical install)
+- `~/.claude/plugins/cache/notpritam-claude-canvas/<version>/` (plugin install)
+
+Resolve once. Call this `$CC`.
+
+### Step 2: Check templates BEFORE generating
+
+Read `$CC/templates/defaults/index.json` and `$CC/data/templates/index.json` (if it exists). Scan `description` + `tags` for a match.
+
+- Match found → load `$CC/templates/defaults/<slug>.json`, substitute `{{placeholders}}`, set `template_id` on your diagram.
+- No match → generate from scratch using the schema + rules above.
+
+### Step 3: Generate the JSON
+
+ID convention: `<topic-slug>-<YYYYMMDD-HHMMSS>` (e.g. `jwt-auth-20260521-143000`). Use the same ID to update an existing diagram (server overwrites, browser hot-swaps).
+
+**Run the 7-question preflight. Build the JSON. Run the 10-item self-check. Fix any failures.**
+
+### Step 4: Write the JSON and invoke the bootstrap
 
 ```bash
-# Write the JSON (use the Write tool — not echo).
+# Use Write tool, not echo, to write data/diagrams/<id>.json
 # Then:
 node "$CC/scripts/ensure-running.mjs" --open "<id>"
 ```
 
-The script outputs a JSON line like `{"url":"http://127.0.0.1:43123/#/<id>","port":43123,"pid":12345,"new":true}`. If `new: true`, a browser tab was opened. If `new: false`, the existing tab will receive the diagram via SSE — no new tab.
+Script outputs JSON like `{"url":"http://127.0.0.1:43123/#/<id>","port":43123,"pid":12345,"new":true}`.
+- `new: true` → browser tab opened.
+- `new: false` → existing tab updates via SSE (no new tab).
 
-Tell the user the URL in your reply so they can re-open it if they close the tab:
-
+Tell the user the URL so they can re-open if closed:
 > Opened your diagram at http://127.0.0.1:43123/#/<id>
 
-### Failure modes
+---
+
+## Worked examples
+
+### Example: protocol handshake
+
+User: `/visualize TCP handshake`
+
+**Preflight:**
+- Audience: developer/student
+- One thing: 3 messages establish a connection
+- Abstraction: protocol message level
+- Entities: 2 (Client, Server)
+- Entry: Client SYN; exit: connection established
+- Type: "How do A and B interact?" → sequence
+- Branches: none
+
+**Anti-checks:**
+- ✗ Don't use `action` nodes for SYN/SYN-ACK — they're edge labels on `request` edges
+- ✗ Don't show FIN teardown — mixes setup vs teardown abstraction
+- ✓ Use `note` nodes for sequence numbers / flag explanations
+
+```json
+{
+  "id": "tcp-handshake-20260521-225000",
+  "title": "TCP three-way handshake",
+  "schema_version": 1,
+  "layout_hint": "top-to-bottom",
+  "nodes": [
+    { "id": "client", "type": "actor", "label": "Client", "position": { "x": 150, "y": 100 } },
+    { "id": "server", "type": "actor", "label": "Server", "position": { "x": 500, "y": 100 } },
+    { "id": "n1", "type": "note", "label": "seq=x, SYN flag", "position": { "x": 340, "y": 200 } },
+    { "id": "n2", "type": "note", "label": "seq=y, ack=x+1", "position": { "x": 340, "y": 320 } },
+    { "id": "n3", "type": "note", "label": "ack=y+1, connected", "position": { "x": 340, "y": 440 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "client", "target": "server", "type": "request", "label": "SYN" },
+    { "id": "e2", "source": "server", "target": "client", "type": "request", "label": "SYN-ACK" },
+    { "id": "e3", "source": "client", "target": "server", "type": "request", "label": "ACK" }
+  ]
+}
+```
+
+### Example: causal debugging
+
+User: `/visualize why our app goes down on deploy`
+
+**Preflight:**
+- Audience: incident-response engineers
+- One thing: the sequence of causes leading to downtime
+- Abstraction: infrastructure/operational events
+- Type: "Why does X happen?" → causal chain
+- Branches: none
+
+**Anti-checks:**
+- ✗ Don't use `request` edges — these are causal, not intentional calls
+- ✗ Don't start with the symptom (User reports 504); start with the root cause (Deploy Triggered)
+- ✗ Don't add "Should we roll back?" — that's a human decision, separate concern
+
+```json
+{
+  "id": "deploy-downtime-20260521-230000",
+  "title": "Why deploys cause downtime",
+  "schema_version": 1,
+  "layout_hint": "left-to-right",
+  "nodes": [
+    { "id": "deploy", "type": "action", "label": "Deploy Triggered", "position": { "x": 80, "y": 200 } },
+    { "id": "drain", "type": "action", "label": "Old Pods Drain", "position": { "x": 300, "y": 200 } },
+    { "id": "gap", "type": "concept", "label": "Zero Instances", "position": { "x": 520, "y": 200 } },
+    { "id": "health", "type": "concept", "label": "Health Check Fails", "position": { "x": 740, "y": 200 } },
+    { "id": "lb", "type": "actor", "label": "Load Balancer", "position": { "x": 740, "y": 80 } },
+    { "id": "err", "type": "data", "label": "504 Timeout", "position": { "x": 960, "y": 200 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "deploy", "target": "drain", "type": "causes", "label": "triggers" },
+    { "id": "e2", "source": "drain", "target": "gap", "type": "causes", "label": "creates" },
+    { "id": "e3", "source": "gap", "target": "health", "type": "causes", "label": "causes" },
+    { "id": "e4", "source": "health", "target": "lb", "type": "causes", "label": "notifies" },
+    { "id": "e5", "source": "lb", "target": "err", "type": "causes", "label": "returns to client" }
+  ]
+}
+```
+
+---
+
+## Templates: when to save
+
+After generating a diagram that worked well, **ask the user**: "Want me to save this as a template? It'll help me start faster next time you ask for something similar." If yes, they open the canvas and click "Save current as template…" in the sidebar.
+
+## What the user can do once your diagram is on-screen
+
+This is a real editor. The user can:
+- **Drag** nodes (auto-saves position)
+- **Connect** two nodes by dragging from one card's edge to another → creates an arrow
+- **Disconnect / delete** an arrow by selecting it and pressing Delete/Backspace
+- **Reattach** an arrow by grabbing its endpoint and dragging to a different card
+- **Edit a label** by double-clicking
+- **Delete a node** by selecting + Delete — connected arrows go with it
+
+Treat their edits as source of truth. When they say "you got X wrong" or "add a step between Y and Z", read the latest `data/diagrams/<id>.json` to see their current state, then update it preserving their layout choices.
+
+## Idempotency
+
+- Same `id` → overwrites file → server broadcasts `diagram:update` → open tab hot-swaps.
+- Use this for iterative refinement: "make node X red" → rewrite same file.
+- New diagrams = new IDs unless the user explicitly says to edit the current one.
+
+## Failure modes
 
 | Symptom | What to do |
 |---|---|
 | `ensure-running.mjs` exits non-zero | Read stderr. Most likely Node < 20 — tell user. |
-| Server reports `error` status | Check `data/server.lock` is not corrupted. Delete it manually if so. |
-| Browser shows "loading…" forever | `app/dist/` may be missing. Run `cd $CC/app && pnpm install && pnpm build`. |
-| Diagram doesn't appear | Confirm the JSON validates — try `node -e "import('./server/schema.mjs').then(({validateDiagram}) => console.log(validateDiagram(JSON.parse(require('fs').readFileSync('data/diagrams/<id>.json','utf8')))))"` |
+| Server `status: error` | Check `data/server.lock` not corrupted. Delete and retry. |
+| Browser shows "loading…" forever | `app/dist/` missing. Run `cd $CC/app && pnpm install && pnpm build`. |
+| Diagram doesn't appear | Validate the JSON: `node -e "import('./server/schema.mjs').then(({validateDiagram}) => console.log(validateDiagram(JSON.parse(require('fs').readFileSync('data/diagrams/<id>.json','utf8')))))"` |
 
-## Templates: when to save one
+---
 
-After generating a diagram that worked well, ASK the user: "Want me to save this as a template? It'll help me start faster next time you ask for something similar."
+## See also
 
-If yes, the user opens the canvas and clicks "Save current as template…" in the sidebar. You don't write templates directly — they come from the UI.
-
-## Idempotency
-
-- Same `id` → overwrites the JSON file → server broadcasts `diagram:update` → existing browser tab hot-swaps.
-- Use this for iterative refinement: "make node X red" → rewrite the same file with the change.
-- New diagrams get new IDs unless the user asks to edit the current one.
-
-## What the user can do once your diagram is on-screen
-
-This is a real editor. Once you've rendered a diagram, the user can:
-
-- **Drag** nodes anywhere (auto-saves position).
-- **Connect** two nodes by dragging from the right handle of one to the left handle of another → creates a `request` edge by default; they can change the type by editing the JSON or via UI (future).
-- **Disconnect / delete** an edge by selecting it and pressing Delete/Backspace.
-- **Reattach** an edge by grabbing one of its endpoints and dragging it to a new node.
-- **Edit a label** by double-clicking it.
-- **Add a new node** by dragging from the palette (top-left) onto the canvas.
-- **Delete a node** by selecting it and pressing Delete/Backspace — connected edges are removed too.
-
-Treat their edits as the source of truth. When the user comes back to you with "you got X wrong" or "add a step between Y and Z", read the latest `data/diagrams/<id>.json` to see their current state, then update it preserving their layout choices.
-
-## Anti-patterns
-
-- Don't generate a diagram for a one-line answer.
-- Don't put more than ~25 nodes on a single diagram — split it.
-- Don't use `note` for primary content; it's for side annotations.
-- Don't skip the template check — that's where the skill gets better over time.
-- Don't omit `position` — without positions, React Flow stacks everything at 0,0.
+`docs/visualization-research.md` — full research basis for these rules with citations. Refer to it when adding new diagram types or revising decision rules.
