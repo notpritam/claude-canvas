@@ -1,0 +1,22 @@
+{
+  "templates": [
+    {
+      "slug": "request-response-flow",
+      "name": "Request / response flow",
+      "description": "Two-actor request/response sequence (client + server), useful for API endpoints, auth flows, or any back-and-forth interaction.",
+      "tags": ["sequence", "api", "request-response", "client-server"]
+    },
+    {
+      "slug": "sequence-3-actors",
+      "name": "3-actor sequence",
+      "description": "Three actors exchanging messages in order. Good for OAuth flows, service-to-service-to-service handoffs, or any 3-party handshake.",
+      "tags": ["sequence", "actors", "handshake", "oauth"]
+    },
+    {
+      "slug": "architecture-microservices",
+      "name": "Microservices architecture",
+      "description": "Service-oriented architecture with gateway, services, and databases. Useful for explaining backend topologies.",
+      "tags": ["architecture", "microservices", "backend", "system-design"]
+    }
+  ]
+}

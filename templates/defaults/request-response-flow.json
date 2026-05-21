@@ -1,0 +1,54 @@
+{
+  "slug": "request-response-flow",
+  "name": "Request / response flow",
+  "description": "Two-actor request/response sequence",
+  "tags": ["sequence", "api", "request-response"],
+  "diagram": {
+    "id": "__template__request-response-flow",
+    "title": "{{title}}",
+    "schema_version": 1,
+    "groups": [
+      { "id": "client", "label": "{{client_label}}", "color": "#3b82f6" },
+      { "id": "server", "label": "{{server_label}}", "color": "#10b981" }
+    ],
+    "nodes": [
+      {
+        "id": "client_action",
+        "type": "action",
+        "label": "{{client_action}}",
+        "group": "client",
+        "position": { "x": 40, "y": 60 }
+      },
+      {
+        "id": "server_actor",
+        "type": "actor",
+        "label": "{{server_actor}}",
+        "group": "server",
+        "position": { "x": 480, "y": 60 }
+      },
+      {
+        "id": "client_result",
+        "type": "data",
+        "label": "{{client_result}}",
+        "group": "client",
+        "position": { "x": 40, "y": 220 }
+      }
+    ],
+    "edges": [
+      {
+        "id": "req",
+        "source": "client_action",
+        "target": "server_actor",
+        "label": "{{request_label}}",
+        "type": "request"
+      },
+      {
+        "id": "res",
+        "source": "server_actor",
+        "target": "client_result",
+        "label": "{{response_label}}",
+        "type": "data"
+      }
+    ]
+  }
+}

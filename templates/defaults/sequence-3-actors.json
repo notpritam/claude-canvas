@@ -1,0 +1,24 @@
+{
+  "slug": "sequence-3-actors",
+  "name": "3-actor sequence",
+  "description": "Three actors exchanging messages",
+  "tags": ["sequence", "actors", "handshake"],
+  "diagram": {
+    "id": "__template__sequence-3-actors",
+    "title": "{{title}}",
+    "schema_version": 1,
+    "nodes": [
+      { "id": "a1", "type": "actor", "label": "{{actor_1}}", "position": { "x": 40, "y": 40 } },
+      { "id": "a2", "type": "actor", "label": "{{actor_2}}", "position": { "x": 320, "y": 40 } },
+      { "id": "a3", "type": "actor", "label": "{{actor_3}}", "position": { "x": 600, "y": 40 } },
+      { "id": "s1", "type": "action", "label": "{{step_1}}", "position": { "x": 40, "y": 180 } },
+      { "id": "s2", "type": "action", "label": "{{step_2}}", "position": { "x": 320, "y": 180 } },
+      { "id": "s3", "type": "action", "label": "{{step_3}}", "position": { "x": 600, "y": 180 } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "a1", "target": "a2", "label": "{{edge_1}}", "type": "request" },
+      { "id": "e2", "source": "a2", "target": "a3", "label": "{{edge_2}}", "type": "request" },
+      { "id": "e3", "source": "a3", "target": "a1", "label": "{{edge_3}}", "type": "data" }
+    ]
+  }
+}
