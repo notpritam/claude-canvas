@@ -11,7 +11,9 @@
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@excalidraw/excalidraw": "^0.18.1",
+    "tldraw": "^5.0.1",
+    "@tldraw/tlschema": "^5.0.1",
+    "@tldraw/validate": "^5.0.1",
     "zustand": "^5.0.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0"

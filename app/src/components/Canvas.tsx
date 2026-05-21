@@ -1,88 +1,107 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Excalidraw } from "@excalidraw/excalidraw";
-import "@excalidraw/excalidraw/index.css";
+import { Tldraw, type Editor } from "tldraw";
+import "tldraw/tldraw.css";
 import { useDiagramStore } from "../stores/diagramStore";
 import type { Diagram } from "../types";
-import { toExcalidrawScene, fromExcalidrawScene } from "../excalidraw/converters";
-import type { ExcalidrawSceneElement } from "../excalidraw/converters";
+import { CardShapeUtil } from "../tldraw/CardShape";
+import { diagramToShapes, shapesToDiagram } from "../tldraw/converters";
 import { debounce } from "../lib/debounce";
 
-// Use `any` for the imperative API type to avoid wrestling with deep Excalidraw
-// type internals (ExcalidrawImperativeAPI references App class internals).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ExcalidrawAPI = any;
+const customShapeUtils = [CardShapeUtil];
+
+function loadDiagram(editor: Editor, diagram: Diagram) {
+  const { shapes, bindings } = diagramToShapes(diagram);
+  editor.store.mergeRemoteChanges(() => {
+    editor.createShapes(shapes);
+    if (bindings.length > 0) {
+      try {
+        editor.createBindings(bindings);
+      } catch (err) {
+        console.warn("createBindings failed", err);
+      }
+    }
+  });
+}
 
 export function Canvas({ diagram }: { diagram: Diagram }) {
-  const apiRef = useRef<ExcalidrawAPI | null>(null);
+  const editorRef = useRef<Editor | null>(null);
   const replaceFromScene = useDiagramStore((s) => s.replaceFromScene);
+  const lastSyncedDiagramRef = useRef<Diagram>(diagram);
+  const isInternalChangeRef = useRef(false);
 
-  // Only reset the scene when the diagram identity (id) changes.
-  // SSE hot-replace updates are handled via the useEffect below.
-  const initialData = useMemo(
-    () => ({
-      elements: toExcalidrawScene(diagram).elements,
-      appState: {
-        viewBackgroundColor: "#0b0d12",
-        theme: "dark" as const,
-        gridSize: null,
-      },
-      scrollToContent: true,
-    }),
+  const onMount = useCallback(
+    (editor: Editor) => {
+      editorRef.current = editor;
+      loadDiagram(editor, diagram);
+      editor.zoomToFit();
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [diagram.id]
   );
 
-  // SSE hot-replace: when the server pushes a new diagram version, update the scene
+  // SSE hot-replace: sync updated diagram into tldraw without discarding local layout
   useEffect(() => {
-    if (!apiRef.current) return;
-    const scene = toExcalidrawScene(diagram);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    apiRef.current.updateScene({ elements: scene.elements as any });
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (lastSyncedDiagramRef.current === diagram) return;
+    lastSyncedDiagramRef.current = diagram;
+    isInternalChangeRef.current = true;
+    editor.store.mergeRemoteChanges(() => {
+      const allShapes = editor.getCurrentPageShapes();
+      editor.deleteShapes(allShapes.map((s) => s.id));
+      const { shapes, bindings } = diagramToShapes(diagram);
+      editor.createShapes(shapes);
+      if (bindings.length > 0) {
+        try {
+          editor.createBindings(bindings);
+        } catch (err) {
+          console.warn("createBindings failed on hot-replace", err);
+        }
+      }
+    });
+    queueMicrotask(() => {
+      isInternalChangeRef.current = false;
+    });
   }, [diagram]);
 
   useEffect(() => {
     document.title = `${diagram.title} · claude-canvas`;
   }, [diagram.title]);
 
-  const onChangeDebounced = useMemo(
+  const persistDebounced = useMemo(
     () =>
-      debounce((elements: readonly ExcalidrawSceneElement[]) => {
-        const next = fromExcalidrawScene(elements as ExcalidrawSceneElement[], diagram);
+      debounce(() => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        if (isInternalChangeRef.current) return;
+        const shapes = editor.getCurrentPageShapes() as any[];
+        const bindings = editor.store
+          .allRecords()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((r: any) => r.typeName === "binding") as any[];
+        const next = shapesToDiagram(shapes, bindings, lastSyncedDiagramRef.current);
+        lastSyncedDiagramRef.current = next;
         replaceFromScene(next);
-      }, 800),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [diagram.id, replaceFromScene]
+      }, 600),
+    [replaceFromScene]
   );
 
-  const onChange = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (elements: readonly any[]) => {
-      onChangeDebounced(elements as readonly ExcalidrawSceneElement[]);
-    },
-    [onChangeDebounced]
-  );
+  // Listen for user-originated store changes and persist
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const unsubscribe = editor.store.listen(
+      () => {
+        persistDebounced();
+      },
+      { source: "user", scope: "all" }
+    );
+    return unsubscribe;
+  }, [persistDebounced]);
 
   return (
     <div className="w-full h-full">
-      <Excalidraw
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        excalidrawAPI={(api: any) => {
-          apiRef.current = api;
-        }}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        initialData={initialData as any}
-        onChange={onChange}
-        theme="dark"
-        UIOptions={{
-          canvasActions: {
-            loadScene: false,
-            saveAsImage: true,
-            export: false,
-            saveToActiveFile: false,
-          },
-          tools: { image: false },
-        }}
-      />
+      <Tldraw shapeUtils={customShapeUtils} onMount={onMount} />
     </div>
   );
 }

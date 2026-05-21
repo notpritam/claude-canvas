@@ -11,7 +11,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           react: ["react", "react-dom"],
-          excalidraw: ["@excalidraw/excalidraw"],
+          tldraw: ["tldraw"],
         },
       },
     },

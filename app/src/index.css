@@ -1,4 +1,4 @@
-@import "@excalidraw/excalidraw/index.css";
+@import "tldraw/tldraw.css";
 
 @tailwind base;
 @tailwind components;
