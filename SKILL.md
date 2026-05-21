@@ -178,17 +178,94 @@ Answer these to yourself first. If you can't, the diagram will be wrong.
 | Edge label length | ≤5 words / ≤40 chars, must include a verb |
 | Group label length | ≤3 words / ≤25 chars |
 
-**Spacing in `position`:**
-- Min separation: 80px horizontal, 100px vertical
-- Sequence message spacing: 80–120px vertical per step
-- Tree: 200px per level, 150px between siblings (more if labels are long)
-- Group gap: 150px between groups
+**Spacing in `position` — be GENEROUS, not cramped (cards are 240×110+; they need room):**
+
+| Context | Horizontal | Vertical |
+|---|---|---|
+| Min between any two cards | **160px** (gap, not center-to-center) | **140px** (gap) |
+| Process/sequence step → next step | 280–320px between centers | 180–220px between centers |
+| Tree level → child level | n/a | 240px between centers |
+| Tree siblings | 280px between centers (more if labels long) | n/a |
+| Group internal padding | 40px from group edge to first child | 60px from group top to first child |
+| Group → group gap | 200px | 200px |
+| Architecture: actor → primary system | 320px between centers | n/a |
+| Architecture: primary → dependencies | 320px between centers | 180–220px vertically staggered |
+
+**Default canvas envelope:** use the 0–1600 horizontal range and 0–1200 vertical range freely. There's no penalty for big diagrams — there IS a penalty for cramped ones. **When in doubt, push further apart.**
 
 **Layout direction by intent:** see Diagram type table above. Use `layout_hint` field to signal intent.
 
 **When to add a group:** 3+ nodes share an actor/owner, OR diagram has 10+ nodes (groups reduce perceived complexity). Don't group decoratively.
 
 **When to use `content` vs `label`:** label = name (≤4 words). content = anything that doesn't fit — longer explanation, URL, code snippet, caveats. Never cram long text into label.
+
+---
+
+## Designed to walk through — make every diagram explainable in 30 seconds
+
+The diagram exists so the user can *show someone else* the answer. That means it has to read like a guided walkthrough, not a wall of boxes. Follow these patterns:
+
+### 1. Number the steps for any process / sequence / causal diagram
+Prefix `action` and `decision` labels with `1.`, `2.`, `3.`… so reading order is unambiguous.
+
+✓ "1. User clicks Login"  → "2. POST to /auth"  → "3. Validate Credentials"  → "4. Issue JWT"  
+✗ "User clicks Login" → "POST to /auth" → "Validate Credentials" → "Issue JWT"  *(reader has to infer order from layout)*
+
+Skip numbering for: pure architecture topology (no inherent order), pure dependency graphs, comparison diagrams. Always number for: process, sequence, causal chain, lifecycle/state-machine when transitions are linear.
+
+### 2. Use `content` as the one-line explanation of THAT step
+Every node that represents a step or actor should have a `content` field with a single sentence explaining what happens here / what this is. Treat it as the speaker note for a slide.
+
+✓ Label: `"3. Validate Credentials"`, Content: `"Hash the password and compare against the stored bcrypt digest."`  
+✗ Label: `"3. Validate Credentials"`, no content. *(reader has to guess what "validate" means)*
+
+Length: 1 sentence, ≤120 chars. If you need more, the step is too big — split it.
+
+### 3. Use swimlane groups when 2+ actors share the flow
+When a process involves multiple actors (Client + Server, User + System + Database), put each `action` inside a `group` named after the actor that performs it. This makes "who does what" visually obvious without the reader tracing arrows.
+
+```json
+"groups": [
+  { "id": "client_lane", "label": "Client", "color": "#3b82f6" },
+  { "id": "server_lane", "label": "Server", "color": "#10b981" }
+],
+"nodes": [
+  { "id": "n1", "type": "action", "label": "1. Click Login", "group": "client_lane", ... },
+  { "id": "n2", "type": "action", "label": "2. Validate", "group": "server_lane", ... }
+]
+```
+
+Skip swimlanes for single-actor flows (overkill) or when actors have only 1 step each (use `actor` nodes instead).
+
+### 4. Mark the entry point explicitly
+The first node should be visually unmistakable as the start. Use one of:
+- A `concept` node labeled `"▶ START"` connected to the first real step (cleanest for "where do I begin?")
+- Prefix the first action with `"1. "` AND place it at the leftmost/topmost position
+- Add `content: "→ Start here"` on the first node
+
+For state machines: the initial state goes in a `concept` node with content `"Initial state"`.
+
+### 5. Mark terminal / success / failure ends
+End states should be visually distinct from intermediate steps. Use a `concept` node for terminal states with content like:
+- `"✓ Success — user is logged in"` (success path)
+- `"✗ Rejection — 401 returned to client"` (failure path)
+- `"⊙ Terminal — no further transitions"` (state machine end)
+
+Every diagram needs at least one explicitly-marked terminal. Diagrams that just trail off leave the reader unsure if the flow is complete.
+
+### 6. One concept per node — split steps that do multiple things
+If a node label contains "and" / "&" / commas describing actions, split it.
+
+✗ `"Validate token, decode payload, and lookup user"` *(three things in one node)*  
+✓ `"3. Validate Token"` → `"4. Decode Payload"` → `"5. Lookup User"`
+
+Multiple small steps read more clearly than one dense step.
+
+### 7. Default to top-to-bottom for processes >5 steps
+Long horizontal flows force users to scroll/pan. Vertical flow stays in the readable column. Use horizontal only when there are ≤4 steps OR the diagram has swimlanes (where the time axis must be horizontal to fit lanes vertically).
+
+### 8. Keep parallel paths visually parallel
+If two branches happen at the same logical step (e.g., the success path AND failure path from a `decision`), give them the same `y` coordinate (for horizontal flow) or the same `x` (for vertical flow). Visual parallelism signals logical parallelism.
 
 ---
 
@@ -206,6 +283,8 @@ If ANY item fails, fix the diagram before running the bootstrap script. **Do not
 8. **Every `decision` node has ≥2 outgoing edges**, each with a branch label ("yes"/"no" or named conditions).
 9. **Node count within limits.** ≤15 ideally, ≤20 hard. Else split.
 10. **The diagram answers the user's actual question.** Re-read the user's verbatim phrasing. Does this diagram answer it, or did you drift to an adjacent question?
+11. **Spacing breathes — diagram is NOT cramped.** Cards (240×110+) are separated by ≥160px horizontally and ≥140px vertically. No card overlaps another, no edge label overlaps a card. When in doubt, push positions further apart. Cramped diagrams trigger the "wall of boxes" reaction and fail to communicate.
+12. **Sequential diagrams have numbered step labels** (`"1. ..."`, `"2. ..."`, etc.) AND every step node has a one-sentence `content` field explaining what happens there. Architecture/topology diagrams are exempt. If you skipped numbering or content on a process diagram, fix before shipping.
 
 ---
 
@@ -221,6 +300,8 @@ If ANY item fails, fix the diagram before running the bootstrap script. **Do not
 8. **Bidirectional without labels** — `↔` with no label = literally nothing communicated. Use two labeled `request` edges instead.
 9. **2-node "architecture diagram"** — under-decomposed. Either expand to ≥4-6 nodes or just use prose.
 10. **Multiple organizational principles in one view** — deployment topology + user journey + data model in one diagram = unreadable. One diagram, one principle.
+11. **Cramped spacing** — cards within 160px of each other horizontally or 140px vertically. Reads as a "wall of boxes" instead of a flow. Push positions further apart. There is NO downside to a larger diagram; there's huge downside to a cramped one.
+12. **Unnumbered process steps with no content** — a sequence of `action` nodes with terse labels and no explanation is a name-dropping exercise, not a diagram. Number them AND add a one-sentence `content` per step.
 
 ---
 
@@ -281,6 +362,7 @@ User: `/visualize TCP handshake`
 - ✗ Don't use `action` nodes for SYN/SYN-ACK — they're edge labels on `request` edges
 - ✗ Don't show FIN teardown — mixes setup vs teardown abstraction
 - ✓ Use `note` nodes for sequence numbers / flag explanations
+- ✓ Generous spacing: actors 400px apart, notes 200px between rows
 
 ```json
 {
@@ -289,11 +371,21 @@ User: `/visualize TCP handshake`
   "schema_version": 1,
   "layout_hint": "top-to-bottom",
   "nodes": [
-    { "id": "client", "type": "actor", "label": "Client", "position": { "x": 150, "y": 100 } },
-    { "id": "server", "type": "actor", "label": "Server", "position": { "x": 500, "y": 100 } },
-    { "id": "n1", "type": "note", "label": "seq=x, SYN flag", "position": { "x": 340, "y": 200 } },
-    { "id": "n2", "type": "note", "label": "seq=y, ack=x+1", "position": { "x": 340, "y": 320 } },
-    { "id": "n3", "type": "note", "label": "ack=y+1, connected", "position": { "x": 340, "y": 440 } }
+    { "id": "client", "type": "actor", "label": "Client",
+      "content": "Initiates the connection.",
+      "position": { "x": 120, "y": 80 } },
+    { "id": "server", "type": "actor", "label": "Server",
+      "content": "Listens for incoming connections.",
+      "position": { "x": 620, "y": 80 } },
+    { "id": "n1", "type": "note", "label": "1. SYN sent",
+      "content": "Client picks seq=x and sets SYN flag.",
+      "position": { "x": 360, "y": 280 } },
+    { "id": "n2", "type": "note", "label": "2. SYN-ACK",
+      "content": "Server replies with seq=y, ack=x+1.",
+      "position": { "x": 360, "y": 480 } },
+    { "id": "n3", "type": "note", "label": "3. ACK — connected",
+      "content": "Client sends ack=y+1. Bidirectional channel open.",
+      "position": { "x": 360, "y": 680 } }
   ],
   "edges": [
     { "id": "e1", "source": "client", "target": "server", "type": "request", "label": "SYN" },
@@ -326,12 +418,24 @@ User: `/visualize why our app goes down on deploy`
   "schema_version": 1,
   "layout_hint": "left-to-right",
   "nodes": [
-    { "id": "deploy", "type": "action", "label": "Deploy Triggered", "position": { "x": 80, "y": 200 } },
-    { "id": "drain", "type": "action", "label": "Old Pods Drain", "position": { "x": 300, "y": 200 } },
-    { "id": "gap", "type": "concept", "label": "Zero Instances", "position": { "x": 520, "y": 200 } },
-    { "id": "health", "type": "concept", "label": "Health Check Fails", "position": { "x": 740, "y": 200 } },
-    { "id": "lb", "type": "actor", "label": "Load Balancer", "position": { "x": 740, "y": 80 } },
-    { "id": "err", "type": "data", "label": "504 Timeout", "position": { "x": 960, "y": 200 } }
+    { "id": "deploy", "type": "action", "label": "1. Deploy Triggered",
+      "content": "CI/CD pipeline kicks off a rolling update.",
+      "position": { "x": 80, "y": 320 } },
+    { "id": "drain", "type": "action", "label": "2. Old Pods Drain",
+      "content": "Kubernetes sends SIGTERM to existing pods.",
+      "position": { "x": 440, "y": 320 } },
+    { "id": "gap", "type": "concept", "label": "3. Zero Instances",
+      "content": "Brief window where no pod is ready to serve requests.",
+      "position": { "x": 800, "y": 320 } },
+    { "id": "health", "type": "concept", "label": "4. Health Check Fails",
+      "content": "/health endpoint returns 503 — no upstream available.",
+      "position": { "x": 1160, "y": 320 } },
+    { "id": "lb", "type": "actor", "label": "Load Balancer",
+      "content": "ALB sees all targets unhealthy.",
+      "position": { "x": 1160, "y": 100 } },
+    { "id": "err", "type": "data", "label": "5. ✗ 504 Timeout",
+      "content": "Client receives gateway timeout — visible outage.",
+      "position": { "x": 1520, "y": 320 } }
   ],
   "edges": [
     { "id": "e1", "source": "deploy", "target": "drain", "type": "causes", "label": "triggers" },
@@ -342,6 +446,8 @@ User: `/visualize why our app goes down on deploy`
   ]
 }
 ```
+
+**Note the conventions in action:** numbered step labels (`1.`, `2.`…); every node has a `content` sentence explaining what's happening; the final node uses `✗` prefix to mark the failure terminus; horizontal spacing is 360px between centers (well above the 280px minimum) so cards don't crowd each other.
 
 ---
 

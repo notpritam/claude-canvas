@@ -38,8 +38,8 @@ declare module "@tldraw/tlschema" {
 // Constants
 // ---------------------------------------------------------------------------
 
-const CARD_W = 220;
-const CARD_H = 96;
+const CARD_W = 240;
+const CARD_H = 110;
 
 const NODE_THEME: Record<
   NodeType,
@@ -150,11 +150,11 @@ export class CardShapeUtil extends ShapeUtil<CardShape> {
           background: theme.bg,
           border: `1.5px solid ${theme.stroke}`,
           borderRadius: 10,
-          padding: 10,
+          padding: "14px 16px",
           pointerEvents: "all",
           display: "flex",
           flexDirection: "column",
-          gap: 6,
+          gap: 8,
           color: "#ffffff",
           fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
           overflow: "hidden",
@@ -162,11 +162,11 @@ export class CardShapeUtil extends ShapeUtil<CardShape> {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Icon size={13} color={theme.accent} />
+          <Icon size={12} color={theme.accent} />
           <span
             style={{
-              fontSize: 10,
-              letterSpacing: 1.2,
+              fontSize: 9,
+              letterSpacing: 1.4,
               textTransform: "uppercase",
               color: theme.accent,
               fontWeight: 600,
@@ -175,14 +175,14 @@ export class CardShapeUtil extends ShapeUtil<CardShape> {
             {shape.props.nodeType}
           </span>
         </div>
-        <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.2, color: "#ffffff" }}>
+        <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.25, color: "#ffffff" }}>
           {shape.props.label}
         </div>
         {shape.props.content && (
           <div
             style={{
-              fontSize: 11,
-              color: "#e2e8f0",
+              fontSize: 10.5,
+              color: "#cbd5e1",
               lineHeight: 1.4,
               overflow: "hidden",
             }}

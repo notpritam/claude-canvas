@@ -53,8 +53,8 @@ export function diagramToShapes(diagram: Diagram): ConversionOutput {
       y: n.position.y,
       meta: { diagramNodeId: n.id },
       props: {
-        w: 220,
-        h: n.content ? 132 : 96,
+        w: 240,
+        h: n.content ? 150 : 110,
         nodeType: n.type,
         label: n.label,
         content: n.content,
