@@ -1,6 +1,9 @@
 # Per-user runtime data — never committed
 data/
 
+# Internal working docs (specs, plans, research, drafts) — never committed
+docs/
+
 # Node
 node_modules/
 .pnp.*

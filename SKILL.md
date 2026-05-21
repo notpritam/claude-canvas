@@ -482,8 +482,3 @@ Treat their edits as source of truth. When they say "you got X wrong" or "add a 
 | Browser shows "loading…" forever | `app/dist/` missing. Run `cd $CC/app && pnpm install && pnpm build`. |
 | Diagram doesn't appear | Validate the JSON: `node -e "import('./server/schema.mjs').then(({validateDiagram}) => console.log(validateDiagram(JSON.parse(require('fs').readFileSync('data/diagrams/<id>.json','utf8')))))"` |
 
----
-
-## See also
-
-`docs/visualization-research.md` — full research basis for these rules with citations. Refer to it when adding new diagram types or revising decision rules.

@@ -30,7 +30,6 @@ Big release. The canvas itself got rebuilt twice (ReactFlow → Excalidraw → t
 - `examples/claude-canvas-architecture.json` — meta-diagram showing how claude-canvas itself works end-to-end (loaded as the showcase example)
 
 ### Documentation
-- `docs/visualization-research.md` — full research basis (Tufte, C4 model, Sweller, Mermaid community, Simon Brown, Wurman LATCH, etc.) with citations
 - `CHANGELOG.md` (this file)
 - `scripts/release.sh` — one-command release script for future versions
 

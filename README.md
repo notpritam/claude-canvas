@@ -60,8 +60,6 @@ Claude generates the diagram JSON, spins up a tiny local server on a random free
 - **Server lifecycle:** starts on first `/visualize`, exits after 30 min of no clients.
 - **Live updates:** Claude regenerates a diagram with the same ID → server broadcasts via SSE → your open tab hot-swaps.
 
-See [`docs/specs/2026-05-21-canvas-viz-design.md`](docs/specs/2026-05-21-canvas-viz-design.md) for the full design.
-
 ## Troubleshooting
 
 **"Browser doesn't open"** — On Linux you need `xdg-open` (usually installed). On macOS/Windows, the built-in commands handle this. Worst case, the bootstrap script prints the URL — open it manually.
