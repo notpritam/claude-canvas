@@ -1,0 +1,330 @@
+{
+  "id": "claude-canvas-architecture-20260521",
+  "title": "How claude-canvas works end to end",
+  "description": "What happens from /visualize X to a live-editable canvas, including how Claude updates trigger SSE hot-swaps in the browser.",
+  "schema_version": 1,
+  "layout_hint": "top-to-bottom",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "concept",
+      "label": "▶ START",
+      "content": "User wants a visualization. Types a trigger phrase in Claude Code.",
+      "position": {
+        "x": 100,
+        "y": 60
+      }
+    },
+    {
+      "id": "user_invoke",
+      "type": "action",
+      "label": "1. \"/visualize X\"",
+      "content": "Any natural trigger (visualize, draw, diagram, show on canvas) activates the skill.",
+      "position": {
+        "x": 100,
+        "y": 300
+      }
+    },
+    {
+      "id": "claude",
+      "type": "actor",
+      "label": "Claude",
+      "content": "Reads SKILL.md, runs preflight + self-check, generates schema-valid JSON, writes it to disk, then runs the bootstrap.",
+      "position": {
+        "x": 580,
+        "y": 300
+      }
+    },
+    {
+      "id": "skill_md",
+      "type": "data",
+      "label": "SKILL.md",
+      "content": "400 lines of rules: 7-question preflight, diagram-type table, node/edge disambiguation, 12 self-checks, 12 anti-patterns.",
+      "position": {
+        "x": 1060,
+        "y": 60
+      }
+    },
+    {
+      "id": "write_json",
+      "type": "action",
+      "label": "2. Write JSON file",
+      "content": "Claude uses the Write tool to save data/diagrams/<id>.json. This file is the source of truth on disk.",
+      "position": {
+        "x": 100,
+        "y": 560
+      }
+    },
+    {
+      "id": "diagram_file",
+      "type": "data",
+      "label": "data/diagrams/<id>.json",
+      "content": "Per-user, gitignored. One file = one diagram. Validated against server/schema.mjs.",
+      "position": {
+        "x": 580,
+        "y": 560
+      }
+    },
+    {
+      "id": "bootstrap",
+      "type": "action",
+      "label": "3. Run ensure-running.mjs",
+      "content": "Idempotent bootstrap. Reads data/server.lock and decides whether to spawn the server.",
+      "position": {
+        "x": 100,
+        "y": 820
+      }
+    },
+    {
+      "id": "lockfile",
+      "type": "data",
+      "label": "data/server.lock",
+      "content": "{ pid, port, started_at }. Liveness tested via process.kill(pid, 0).",
+      "position": {
+        "x": 1060,
+        "y": 820
+      }
+    },
+    {
+      "id": "decide_server",
+      "type": "decision",
+      "label": "4. Server alive?",
+      "content": "If lockfile exists and PID responds: reuse. Otherwise: spawn server.mjs on a random free port.",
+      "position": {
+        "x": 100,
+        "y": 1080
+      }
+    },
+    {
+      "id": "server",
+      "type": "actor",
+      "label": "server.mjs (Node, stdlib only)",
+      "content": "Random port. Serves app/dist + /api/diagrams (read) + /api/save (write+broadcast) + /api/events (SSE).",
+      "position": {
+        "x": 580,
+        "y": 1080
+      }
+    },
+    {
+      "id": "open_browser",
+      "type": "action",
+      "label": "5. Open browser tab",
+      "content": "Bootstrap auto-opens http://127.0.0.1:<port>/#/<id>. If a tab is already open, reuses it via SSE instead.",
+      "position": {
+        "x": 100,
+        "y": 1340
+      }
+    },
+    {
+      "id": "browser",
+      "type": "actor",
+      "label": "Browser (tldraw)",
+      "content": "Loads pre-built React+tldraw bundle from server. Subscribes to /api/events for live updates.",
+      "position": {
+        "x": 580,
+        "y": 1340
+      }
+    },
+    {
+      "id": "render",
+      "type": "action",
+      "label": "6. Render cards + arrows",
+      "content": "GET /api/diagrams/<id> → tldraw store. Custom CardShape paints typed cards; arrows bind for native reconnection.",
+      "position": {
+        "x": 100,
+        "y": 1600
+      }
+    },
+    {
+      "id": "done",
+      "type": "concept",
+      "label": "✓ Visible + editable",
+      "content": "User sees the diagram. Can drag, connect, reattach, edit labels, delete — all GPU-rendered on canvas.",
+      "position": {
+        "x": 100,
+        "y": 1840
+      }
+    },
+    {
+      "id": "user_edit",
+      "type": "action",
+      "label": "User drags / edits",
+      "content": "tldraw fires onChange. Debounced 600ms to avoid flooding the network.",
+      "position": {
+        "x": 1060,
+        "y": 1340
+      }
+    },
+    {
+      "id": "post_save",
+      "type": "action",
+      "label": "POST /api/save",
+      "content": "Browser sends full shape state. Server validates via schema.mjs and writes the file atomically (temp + rename).",
+      "position": {
+        "x": 1060,
+        "y": 1600
+      }
+    },
+    {
+      "id": "sse_push",
+      "type": "data",
+      "label": "SSE diagram:update",
+      "content": "Server broadcasts to every connected browser. Any other open tab hot-swaps without reload.",
+      "position": {
+        "x": 1060,
+        "y": 1840
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "start",
+      "target": "user_invoke",
+      "type": "causes",
+      "label": "begin"
+    },
+    {
+      "id": "e1",
+      "source": "user_invoke",
+      "target": "claude",
+      "type": "request",
+      "label": "triggers skill"
+    },
+    {
+      "id": "e2",
+      "source": "claude",
+      "target": "skill_md",
+      "type": "data",
+      "label": "reads rules"
+    },
+    {
+      "id": "e3",
+      "source": "claude",
+      "target": "write_json",
+      "type": "causes",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "source": "write_json",
+      "target": "diagram_file",
+      "type": "data",
+      "label": "writes"
+    },
+    {
+      "id": "e5",
+      "source": "write_json",
+      "target": "bootstrap",
+      "type": "causes",
+      "label": "next"
+    },
+    {
+      "id": "e6",
+      "source": "bootstrap",
+      "target": "lockfile",
+      "type": "data",
+      "label": "reads"
+    },
+    {
+      "id": "e7",
+      "source": "bootstrap",
+      "target": "decide_server",
+      "type": "causes",
+      "label": ""
+    },
+    {
+      "id": "e8",
+      "source": "decide_server",
+      "target": "server",
+      "type": "causes",
+      "label": "no — spawn"
+    },
+    {
+      "id": "e9",
+      "source": "decide_server",
+      "target": "open_browser",
+      "type": "causes",
+      "label": "yes — reuse"
+    },
+    {
+      "id": "e10",
+      "source": "server",
+      "target": "lockfile",
+      "type": "data",
+      "label": "writes on start"
+    },
+    {
+      "id": "e11",
+      "source": "server",
+      "target": "diagram_file",
+      "type": "data",
+      "label": "reads on GET"
+    },
+    {
+      "id": "e12",
+      "source": "server",
+      "target": "open_browser",
+      "type": "causes",
+      "label": "ready"
+    },
+    {
+      "id": "e13",
+      "source": "open_browser",
+      "target": "browser",
+      "type": "request",
+      "label": "navigate to #/<id>"
+    },
+    {
+      "id": "e14",
+      "source": "browser",
+      "target": "render",
+      "type": "causes",
+      "label": "data fetched"
+    },
+    {
+      "id": "e15",
+      "source": "render",
+      "target": "done",
+      "type": "causes",
+      "label": "shapes painted"
+    },
+    {
+      "id": "e16",
+      "source": "done",
+      "target": "user_edit",
+      "type": "causes",
+      "label": "or — user edits →"
+    },
+    {
+      "id": "e17",
+      "source": "user_edit",
+      "target": "post_save",
+      "type": "request",
+      "label": "debounced"
+    },
+    {
+      "id": "e18",
+      "source": "post_save",
+      "target": "diagram_file",
+      "type": "data",
+      "label": "atomic write"
+    },
+    {
+      "id": "e19",
+      "source": "post_save",
+      "target": "sse_push",
+      "type": "causes",
+      "label": "broadcasts"
+    },
+    {
+      "id": "e20",
+      "source": "sse_push",
+      "target": "browser",
+      "type": "data",
+      "label": "all tabs sync"
+    }
+  ],
+  "created_at": "2026-05-21T15:05:45.586Z",
+  "updated_at": "2026-05-21T15:05:45.586Z"
+}

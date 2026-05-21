@@ -1,6 +1,6 @@
 {
   "name": "claude-canvas",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Claude Code skill that renders interactive diagrams on a real React Flow canvas",
   "type": "module",
   "private": true,
