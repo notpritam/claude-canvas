@@ -32,6 +32,7 @@ export function Canvas({ diagram }: { diagram: Diagram }) {
   const onMount = useCallback(
     (editor: Editor) => {
       editorRef.current = editor;
+      editor.user.updateUserPreferences({ colorScheme: "dark" });
       loadDiagram(editor, diagram);
       editor.zoomToFit();
     },

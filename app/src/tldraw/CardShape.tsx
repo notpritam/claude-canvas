@@ -45,13 +45,13 @@ const NODE_THEME: Record<
   NodeType,
   { icon: LucideIcon; bg: string; stroke: string; accent: string }
 > = {
-  action:   { icon: Zap,        bg: "#1e3a8a40", stroke: "#3b82f6", accent: "#93c5fd" },
-  data:     { icon: Database,   bg: "#78350f40", stroke: "#d97706", accent: "#fcd34d" },
-  concept:  { icon: Lightbulb,  bg: "#581c8740", stroke: "#9333ea", accent: "#d8b4fe" },
-  decision: { icon: GitBranch,  bg: "#713f1240", stroke: "#ca8a04", accent: "#fde047" },
-  code:     { icon: Code2,      bg: "#1f293760", stroke: "#6b7280", accent: "#d1d5db" },
-  note:     { icon: StickyNote, bg: "#7f1d1d40", stroke: "#dc2626", accent: "#fca5a5" },
-  actor:    { icon: User,       bg: "#3730a340", stroke: "#4f46e5", accent: "#a5b4fc" },
+  action:   { icon: Zap,        bg: "#1e40af", stroke: "#60a5fa", accent: "#bfdbfe" },
+  data:     { icon: Database,   bg: "#92400e", stroke: "#fbbf24", accent: "#fde68a" },
+  concept:  { icon: Lightbulb,  bg: "#6b21a8", stroke: "#c084fc", accent: "#e9d5ff" },
+  decision: { icon: GitBranch,  bg: "#854d0e", stroke: "#facc15", accent: "#fef08a" },
+  code:     { icon: Code2,      bg: "#334155", stroke: "#94a3b8", accent: "#e2e8f0" },
+  note:     { icon: StickyNote, bg: "#9f1239", stroke: "#fb7185", accent: "#fecdd3" },
+  actor:    { icon: User,       bg: "#3730a3", stroke: "#818cf8", accent: "#c7d2fe" },
 };
 
 // ---------------------------------------------------------------------------
@@ -155,9 +155,10 @@ export class CardShapeUtil extends ShapeUtil<CardShape> {
           display: "flex",
           flexDirection: "column",
           gap: 6,
-          color: "#e5e7eb",
+          color: "#ffffff",
           fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
           overflow: "hidden",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -167,20 +168,21 @@ export class CardShapeUtil extends ShapeUtil<CardShape> {
               fontSize: 10,
               letterSpacing: 1.2,
               textTransform: "uppercase",
-              color: "#9ca3af",
+              color: theme.accent,
+              fontWeight: 600,
             }}
           >
             {shape.props.nodeType}
           </span>
         </div>
-        <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.2 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.2, color: "#ffffff" }}>
           {shape.props.label}
         </div>
         {shape.props.content && (
           <div
             style={{
               fontSize: 11,
-              color: "#9ca3af",
+              color: "#e2e8f0",
               lineHeight: 1.4,
               overflow: "hidden",
             }}
