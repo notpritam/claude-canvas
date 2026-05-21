@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from "react";
-import { ReactFlowProvider } from "@xyflow/react";
 import { Canvas } from "./components/Canvas";
 import { EmptyState } from "./components/EmptyState";
 import { Sidebar } from "./components/panels/Sidebar";
@@ -48,13 +47,7 @@ export default function App() {
   return (
     <div className="h-screen w-screen flex">
       <main className="flex-1 relative">
-        {diagram ? (
-          <ReactFlowProvider>
-            <Canvas diagram={diagram} />
-          </ReactFlowProvider>
-        ) : (
-          <EmptyState />
-        )}
+        {diagram ? <Canvas diagram={diagram} /> : <EmptyState />}
       </main>
       <Sidebar />
     </div>

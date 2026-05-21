@@ -10,6 +10,9 @@ node_modules/
 # Build artifacts (app/dist is intentionally committed; this catches stray builds)
 .vite/
 *.tsbuildinfo
+# tsc emits these when composite: true in tsconfig.node.json — not source
+app/vite.config.d.ts
+app/vite.config.js
 
 # Editor/OS
 .DS_Store

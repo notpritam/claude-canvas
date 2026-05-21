@@ -1,4 +1,4 @@
-@import "@xyflow/react/dist/style.css";
+@import "@excalidraw/excalidraw/index.css";
 
 @tailwind base;
 @tailwind components;
