@@ -34,7 +34,7 @@ export function SaveTemplateModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
       <form
         onSubmit={submit}
         className="bg-canvas-panel border border-canvas-line rounded-lg p-5 w-[420px] space-y-3"

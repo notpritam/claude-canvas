@@ -40,7 +40,7 @@ const CardNodeImpl = ({ id, data }: NodeProps) => {
   return (
     <div
       className={cn(
-        "rounded-lg ring-1 backdrop-blur-sm shadow-lg min-w-[180px] max-w-[360px]",
+        "rounded-lg ring-1 shadow-lg min-w-[180px] max-w-[360px]",
         theme.bg,
         theme.ring
       )}
